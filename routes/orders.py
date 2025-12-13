@@ -1,6 +1,6 @@
 import json
 import time
-from flask import Blueprint, render_template, request, jsonify, Response, stream_with_context
+from flask import Blueprint, render_template, request, jsonify, Response, stream_with_context, redirect, url_for, flash
 from flask_login import login_required, current_user
 from extensions import db
 from datetime import datetime
@@ -48,6 +48,15 @@ def update_status(order_id):
         return jsonify({'success': True, 'status': new_status})
         
     return jsonify({'error': 'Invalid status'}), 400
+
+@orders_bp.route('/toggle_agent', methods=['POST'])
+@login_required
+def toggle_agent():
+    current_user.agent_on = not current_user.agent_on
+    db.session.commit()
+    # status = "ON" if current_user.agent_on else "OFF"
+    # flash(f"Agent turned {status}") 
+    return redirect(url_for('orders.dashboard'))
 
 @orders_bp.route('/events')
 @login_required

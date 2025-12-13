@@ -86,7 +86,7 @@ def upload_menu():
                 {
                     "role": "user",
                     "content": [
-                        {"type": "text", "text": "Extract the menu items and prices from this image into a clean text format suitable for an AI system prompt."},
+                        {"type": "text", "text": "Extract strictly only the menu items and their prices from this image. output the result as a raw text list (Item: Price). Do NOT include any introductory text, markdown formatting (like ```), headers, footers, or any conversational filler. Just the data."},
                         {"type": "image_url", "image_url": {"url": f"data:image/jpeg;base64,{image_data}"}}
                     ]
                 }

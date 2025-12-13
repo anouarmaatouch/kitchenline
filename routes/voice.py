@@ -21,7 +21,7 @@ def event():
 
 @voice_bp.route('/webhooks/answer', methods=['POST', 'GET'])
 def answer_call():
-    #return jsonify([{"action": "talk", "text": "Hello, your call is connected."}])
+    return jsonify([{"action": "talk", "text": "Hello, your call is connected."}])
 
     # "to" is the Vonage number being called
     data = request.get_json() or {}

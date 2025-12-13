@@ -17,13 +17,14 @@
         <div style="display: flex; gap: 1rem; align-items: center;">
 
             <!-- Agent Status Indicator/Link -->
-            <div style="display: flex; align-items: center; gap: 0.5rem; margin-right: 1rem;">
-                <span style="font-size: 0.9rem; opacity: 0.7;">Agent:</span>
-                <span class="badge {{ 'green' if current_user.agent_on else 'red' }}"
-                    style="padding: 2px 6px; border-radius: 4px; background: {{ '#10b98122' if current_user.agent_on else '#ef444422' }}; color: {{ '#10b981' if current_user.agent_on else '#ef4444' }}; cursor: default;">
-                    {{ 'ON' if current_user.agent_on else 'OFF' }}
-                </span>
-            </div>
+            <form action="{{ url_for('orders.toggle_agent') }}" method="POST"
+                style="margin-right: 1rem; display: flex; align-items: center;">
+                <button type="submit" class="badge {{ 'green' if current_user.agent_on else 'red' }}"
+                    style="border: none; padding: 6px 12px; border-radius: 20px; background: {{ '#10b98122' if current_user.agent_on else '#ef444422' }}; color: {{ '#10b981' if current_user.agent_on else '#ef4444' }}; cursor: pointer; display: flex; align-items: center; gap: 6px; font-weight: 600; transition: all 0.2s;">
+                    <span style="font-size: 0.8rem; opacity: 0.8;">AGENT</span>
+                    <span>{{ 'ON' if current_user.agent_on else 'OFF' }}</span>
+                </button>
+            </form>
 
             {% if current_user.is_admin %}
             <a href="{{ url_for('admin.index') }}" class="btn" style="background: var(--accent-warning);">Admin
