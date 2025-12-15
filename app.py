@@ -11,6 +11,10 @@ def create_app():
     app = Flask(__name__)
     app.config.from_object(Config)
 
+    # Required for Fly.io / Heroku (Handles HTTPS headers from Load Balancer)
+    from werkzeug.middleware.proxy_fix import ProxyFix
+    app.wsgi_app = ProxyFix(app.wsgi_app, x_for=1, x_proto=1, x_host=1, x_prefix=1)
+
     # Configure Logging
     import logging
     import sys
@@ -49,18 +53,27 @@ def create_app():
     from routes.orders import orders_bp
     from routes.voice import voice_bp
     from routes.admin import admin_bp
+    from routes.notifications import notifications_bp
+    from routes.test_routes import test_bp
     
     app.register_blueprint(auth_bp)
     app.register_blueprint(orders_bp)
-    app.register_blueprint(voice_bp)
     app.register_blueprint(admin_bp)
+    app.register_blueprint(voice_bp)
+    app.register_blueprint(notifications_bp)
+    app.register_blueprint(test_bp)
     
     with app.app_context():
         db.create_all()
         
+    @app.route('/sw.js')
+    def sw():
+        from flask import send_from_directory
+        return send_from_directory('static', 'sw.js', mimetype='application/javascript')
+
     return app
 
 app = create_app()
 
 if __name__ == '__main__':
-    app.run(debug=True)
+    app.run(host="0.0.0.0", port=5000, debug=True)

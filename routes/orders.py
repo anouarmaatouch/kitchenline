@@ -42,12 +42,35 @@ def update_status(order_id):
     if new_status in ['recu', 'en_cours', 'termine']:
         order.status = new_status
         db.session.commit()
-        
-        # Notify clients about status change (optional, or just refresh)
-        # For now, UI might just reload or move DOM element.
         return jsonify({'success': True, 'status': new_status})
         
     return jsonify({'error': 'Invalid status'}), 400
+
+@orders_bp.route('/api/orders/<int:order_id>', methods=['DELETE'])
+@login_required
+def delete_order(order_id):
+    order = Order.query.get_or_404(order_id)
+    db.session.delete(order)
+    db.session.commit()
+    return jsonify({'success': True})
+
+@orders_bp.route('/api/orders/<int:order_id>', methods=['PUT'])
+@login_required
+def edit_order(order_id):
+    order = Order.query.get_or_404(order_id)
+    data = request.json
+    
+    if 'order_detail' in data:
+        order.order_detail = data['order_detail']
+    if 'customer_name' in data:
+        order.customer_name = data['customer_name']
+    if 'customer_phone' in data:
+        order.customer_phone = data['customer_phone']
+    if 'address' in data:
+        order.address = data['address']
+        
+    db.session.commit()
+    return jsonify({'success': True})
 
 @orders_bp.route('/toggle_agent', methods=['POST'])
 @login_required
@@ -97,6 +120,16 @@ def create_order():
     db.session.add(order)
     db.session.commit()
     
+    # Trigger Web Push
+    try:
+        from routes.notifications import send_web_push
+        send_web_push({
+            "title": "Ordre reçus",
+            "message": f"{data.get('customer_name')} : {data.get('order_detail')}"
+        })
+    except Exception as e:
+        current_app.logger.error(f"Push Error: {e}")
+
     # Trigger SSE
     add_event('new_order', {'message': 'Ordre reçu'})
     

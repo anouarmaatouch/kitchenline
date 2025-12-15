@@ -45,8 +45,10 @@ def manage_user():
         user = User.query.get(user_id)
         if user:
             user.voice = request.form.get('voice')
+            user.phone_number = request.form.get('phone')
             user.agent_on = 'agent_on' in request.form
             user.system_prompt = request.form.get('system_prompt')
+            user.menu = request.form.get('menu')
             db.session.commit()
             flash('User updated.')
 

@@ -13,11 +13,21 @@ def login():
         
         user = User.query.filter_by(username=username).first()
         
-        if user and user.check_password(password):
-            login_user(user)
-            return redirect(url_for('orders.dashboard'))
+        from flask import current_app
+        current_app.logger.info(f"Login attempt for: {username}")
+        
+        if user:
+            current_app.logger.info(f"User found: {user.username}. Checking password...")
+            if user.check_password(password):
+                current_app.logger.info("Password Correct. Logging in...")
+                login_user(user)
+                return redirect(url_for('orders.dashboard'))
+            else:
+                current_app.logger.warning("Password verification FAILED.")
         else:
-            flash('Invalid username or password')
+            current_app.logger.warning("User NOT FOUND.")
+
+        flash('Invalid username or password')
             
     return render_template('login.html')
 
@@ -39,11 +49,12 @@ def register():
     if User.query.filter_by(username=username).first():
         return {'error': 'User already exists'}, 400
         
+    from flask import current_app
     user = User(
         username=username,
         company=company,
         phone_number=phone,
-        system_prompt="You are a helpful assistant for taking orders.", # Default prompt
+        system_prompt=current_app.config['DEFAULT_SYSTEM_PROMPT'],
         menu=""
     )
     user.set_password(password)

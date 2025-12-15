@@ -6,6 +6,7 @@ flask-sock
 python-dotenv
 vonage
 websocket-client
+pywebpush
 gunicorn
 werkzeug
 gevent
