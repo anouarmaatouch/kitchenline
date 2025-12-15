@@ -23,10 +23,18 @@ def add_event(event_type, data):
 @orders_bp.route('/')
 @login_required
 def dashboard():
-    # Fetch orders by status
-    orders_recu = Order.query.filter_by(status='recu').order_by(Order.created_at.desc()).all()
-    orders_en_cours = Order.query.filter_by(status='en_cours').order_by(Order.created_at.desc()).all()
-    orders_termine = Order.query.filter_by(status='termine').order_by(Order.created_at.desc()).all()
+    # Filter orders by the logged-in user's phone number (company_phone)
+    user_phone = current_user.phone_number
+    
+    if user_phone:
+        orders_recu = Order.query.filter_by(status='recu', company_phone=user_phone).order_by(Order.created_at.desc()).all()
+        orders_en_cours = Order.query.filter_by(status='en_cours', company_phone=user_phone).order_by(Order.created_at.desc()).all()
+        orders_termine = Order.query.filter_by(status='termine', company_phone=user_phone).order_by(Order.created_at.desc()).all()
+    else:
+        # Admin or user without phone sees all orders
+        orders_recu = Order.query.filter_by(status='recu').order_by(Order.created_at.desc()).all()
+        orders_en_cours = Order.query.filter_by(status='en_cours').order_by(Order.created_at.desc()).all()
+        orders_termine = Order.query.filter_by(status='termine').order_by(Order.created_at.desc()).all()
     
     return render_template('dashboard.html', 
                          orders_recu=orders_recu, 

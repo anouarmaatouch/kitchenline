@@ -139,9 +139,9 @@ def voice_stream(ws):
                 },
                 "turn_detection": {
                     "type": "server_vad",
-                    "threshold": 0.5,
-                    "prefix_padding_ms": 200,
-                    "silence_duration_ms": 400
+                    "threshold": 0.3,               # Very sensitive - detects speech quickly
+                    "prefix_padding_ms": 50,        # Minimal context
+                    "silence_duration_ms": 100      # Absolute minimum - responds ASAP after silence
                 },
                 "tools": [
                 {
@@ -158,13 +158,9 @@ def voice_stream(ws):
                         "customer_name": {
                         "type": "string",
                         "description": "Customer's full name as spoken by the caller. Ask to repeat or spell if unclear."
-                        },
-                        "customer_address": {
-                        "type": "string",
-                        "description": "Complete delivery address including city, neighborhood, street, building, and apartment if provided."
                         }
                     },
-                        "required": ["order_details"]
+                        "required": ["order_details", "customer_name"]
                     }
                 }]
             }
@@ -223,15 +219,21 @@ def voice_stream(ws):
                         event = json.loads(msg)
                         event_type = event.get('type')
                         
-                        # Handle Interruption: Cancel OpenAI's current response
+                        # Handle Interruption: Cancel OpenAI's current response immediately
                         if event_type == 'input_audio_buffer.speech_started':
                              current_app.logger.info("User interruption detected - Cancelling OpenAI response")
                              # Tell OpenAI to stop generating the current response
                              try:
-                                 cancel_event = {"type": "response.cancel"}
-                                 openai_ws.send(json.dumps(cancel_event))
+                                 # Cancel the current response
+                                 openai_ws.send(json.dumps({"type": "response.cancel"}))
+                                 # Clear input audio buffer to start fresh
+                                 openai_ws.send(json.dumps({"type": "input_audio_buffer.clear"}))
                              except Exception as cancel_e:
-                                 current_app.logger.warning(f"Failed to send response.cancel: {cancel_e}")
+                                 current_app.logger.warning(f"Failed to send cancel: {cancel_e}")
+                        
+                        # Also handle when user speech ends (to ensure clean state)
+                        if event_type == 'input_audio_buffer.speech_stopped':
+                             current_app.logger.debug("User stopped speaking")
                         
                         # Log meaningful events (ignore frequent audio deltas to reduce noise)
                         # if event_type not in ['response.audio.delta', 'response.audio_transcript.delta']:
@@ -266,7 +268,8 @@ def voice_stream(ws):
                                             order_detail=args.get('order_details'),
                                             customer_name=args.get('customer_name', 'Unknown'),
                                             customer_phone=caller_number or 'Unknown',
-                                            address=args.get('customer_address', 'Pickup')
+                                            company_phone=to_number,
+                                            address='Non defini'
                                         )
                                         db.session.add(new_order)
                                         db.session.commit()

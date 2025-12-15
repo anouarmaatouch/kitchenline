@@ -44,7 +44,8 @@ class Order(db.Model):
     order_detail = db.Column(db.Text, nullable=False)
     customer_name = db.Column(db.String(100))
     customer_phone = db.Column(db.String(20))
-    address = db.Column(db.String(255))
+    company_phone = db.Column(db.String(20))  # The restaurant phone number this order belongs to
+    address = db.Column(db.String(255), default='Non defini')
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     
     # Optional: Link order to a specific user (restaurant) if needed in future
@@ -57,6 +58,7 @@ class Order(db.Model):
             'order_detail': self.order_detail,
             'customer_name': self.customer_name,
             'customer_phone': self.customer_phone,
+            'company_phone': self.company_phone,
             'address': self.address,
             'created_at': self.created_at.isoformat()
         }
