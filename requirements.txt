@@ -10,3 +10,4 @@ pywebpush
 gunicorn
 werkzeug
 gevent
+google-genai

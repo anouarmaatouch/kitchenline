@@ -20,8 +20,11 @@ class Config:
     VONAGE_APPLICATION_ID = os.environ.get('VONAGE_APPLICATION_ID')
     VONAGE_PRIVATE_KEY_PATH = os.environ.get('VONAGE_PRIVATE_KEY_PATH')
     
-    # OpenAI
+    # OpenAI (legacy, can be removed)
     OPENAI_API_KEY = os.environ.get('OPENAI_API_KEY')
+    
+    # Gemini
+    GEMINI_API_KEY = os.environ.get('GEMINI_API_KEY')
     
     # Server
     PUBLIC_URL = os.environ.get('PUBLIC_URL')
