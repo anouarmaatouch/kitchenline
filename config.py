@@ -14,6 +14,12 @@ class Config:
     SQLALCHEMY_DATABASE_URI = uri
     SQLALCHEMY_TRACK_MODIFICATIONS = False
     
+    # Handle stale connections (Fly.io/Postgres)
+    SQLALCHEMY_ENGINE_OPTIONS = {
+        "pool_pre_ping": True,
+        "pool_recycle": 280,
+    }
+    
     # Vonage
     VONAGE_API_KEY = os.environ.get('VONAGE_API_KEY')
     VONAGE_API_SECRET = os.environ.get('VONAGE_API_SECRET')
