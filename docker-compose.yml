@@ -1,32 +1,40 @@
-version: '3.8'
-
 services:
-  web:
-    build: .
-    command: gunicorn -k gevent -w 1 -b 0.0.0.0:5000 app:app
-    volumes:
-      - .:/app
+  api:
+    build: ./api
     ports:
       - "5000:5000"
+    env_file: .env
+    volumes:
+      - ./api:/app
     environment:
-      - DATABASE_URL=postgresql://user:password@db:5432/restau_db
-    dns:
-      - 8.8.8.8
+      - DATABASE_URL=postgresql://user:password@db:5432/serveme
+      - PUBLIC_URL=localhost:5000
     depends_on:
-      - db
-    restart: always
+      db:
+        condition: service_healthy
+
+  web:
+    build: ./web
+    ports:
+      - "80:80"
+    depends_on:
+      - api
 
   db:
-    image: postgres:15
-    volumes:
-      - postgres_data:/var/lib/postgresql/data
+    image: postgres:15-alpine
     environment:
       - POSTGRES_USER=user
       - POSTGRES_PASSWORD=password
-      - POSTGRES_DB=restau_db
+      - POSTGRES_DB=serveme
     ports:
       - "5432:5432"
-    restart: always
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U user -d serveme"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
 
 volumes:
   postgres_data:

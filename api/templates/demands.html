@@ -1,0 +1,232 @@
+<!DOCTYPE html>
+<html lang="fr">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Restaurant AI - Demandes</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    <style>
+        .demand-card {
+            padding: 1.5rem;
+            margin-bottom: 1rem;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+
+        .demand-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+        }
+
+        .demand-content {
+            font-size: 1.1rem;
+            line-height: 1.4;
+        }
+
+        .order-ref {
+            font-size: 0.85rem;
+            padding: 4px 8px;
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 4px;
+            color: var(--accent-primary);
+        }
+    </style>
+</head>
+
+<body>
+    <div class="glass header margin-bottom">
+        <h1>Demandes Spéciales</h1>
+        <div style="display: flex; gap: 1rem; align-items: center;">
+            <a href="{{ url_for('orders.dashboard') }}" class="btn logout-btn">Retour Commandes</a>
+            <a href="{{ url_for('auth.logout') }}" class="btn logout-btn">Déconnexion</a>
+        </div>
+    </div>
+
+    <div class="container" style="max-width: 1200px;">
+        <div class="dashboard-grid">
+            <!-- Nouvelles Demandes -->
+            <div class="dashboard-column">
+                <div class="column-header">
+                    <h2>Nouvelles Demandes</h2>
+                    <span class="badge yellow">{{ demands_new|length }}</span>
+                </div>
+                <div id="demands-new-list">
+                    {% for demand in demands_new %}
+                    <div class="demand-card glass" id="demand-{{ demand.id }}" style="border-left: 4px solid #f59e0b;">
+                        <div class="demand-header">
+                            <div>
+                                <div style="font-size: 0.8rem; opacity: 0.6; margin-bottom: 5px;">
+                                    {{ demand.created_at.strftime('%H:%M') }}
+                                </div>
+                                <div style="font-weight: 600; font-size: 1.1rem;">
+                                    👤 {{ demand.customer_name }}
+                                    <span
+                                        style="font-weight: 400; opacity: 0.7; font-size: 0.9rem; margin-left: 10px;">📞
+                                        {{ demand.customer_phone }}</span>
+                                </div>
+                                {% if demand.active_orders_count > 0 %}
+                                <div style="margin-top: 8px;">
+                                    <span
+                                        style="background: rgba(16, 185, 129, 0.2); color: #10b981; padding: 4px 10px; border-radius: 20px; font-size: 0.8rem; font-weight: 600;">
+                                        🔥 {{ demand.active_orders_count }} Commande(s) Active(s)
+                                    </span>
+                                </div>
+                                {% endif %}
+                            </div>
+                            <div style="display: flex; gap: 8px; flex-wrap: wrap; justify-content: flex-end;">
+                                <button class="btn" onclick="viewHistory('{{ demand.customer_phone }}')"
+                                    style="padding: 4px 12px; font-size: 0.8rem; background: rgba(59, 130, 246, 0.2); color: #3b82f6;">Historique</button>
+                                <button class="btn" onclick="markProcessed({{ demand.id }})"
+                                    style="padding: 4px 12px; font-size: 0.8rem;">Traité</button>
+                                <button class="action-btn" onclick="deleteDemand({{ demand.id }})"
+                                    style="padding: 4px 8px; background: rgba(239, 68, 68, 0.2); color: #ef4444; border: none; border-radius: 4px; cursor: pointer;">🗑️</button>
+                            </div>
+                        </div>
+                        <div class="demand-content"
+                            style="margin-top: 10px; background: rgba(255,255,255,0.03); padding: 10px; border-radius: 8px;">
+                            {{ demand.content }}
+                        </div>
+                    </div>
+                    {% else %}
+                    <p style="text-align: center; opacity: 0.5;">Aucune nouvelle demande.</p>
+                    {% endfor %}
+                </div>
+            </div>
+
+            <!-- Demandes Traitées -->
+            <div class="dashboard-column">
+                <div class="column-header">
+                    <h2>Demandes Traitées</h2>
+                    <span class="badge green">{{ demands_processed|length }}</span>
+                </div>
+                <div id="demands-processed-list">
+                    {% for demand in demands_processed %}
+                    <div class="demand-card glass" id="demand-{{ demand.id }}"
+                        style="opacity: 0.7; border-left: 4px solid #10b981;">
+                        <div class="demand-header">
+                            <div>
+                                <div style="font-size: 0.8rem; opacity: 0.6; margin-bottom: 5px;">
+                                    {{ demand.created_at.strftime('%H:%M') }}
+                                </div>
+                                <div style="font-weight: 600; font-size: 1rem;">
+                                    👤 {{ demand.customer_name }}
+                                </div>
+                            </div>
+                            <div style="display: flex; gap: 8px;">
+                                <button class="btn" onclick="viewHistory('{{ demand.customer_phone }}')"
+                                    style="padding: 4px 8px; font-size: 0.7rem; background: rgba(59, 130, 246, 0.1); color: #3b82f6;">Historique</button>
+                                <button class="action-btn" onclick="deleteDemand({{ demand.id }})"
+                                    style="padding: 4px 8px; background: rgba(239, 68, 68, 0.2); color: #ef4444; border: none; border-radius: 4px; cursor: pointer;">🗑️</button>
+                            </div>
+                        </div>
+                        <div class="demand-content" style="margin-top: 10px; font-size: 0.9rem; opacity: 0.8;">
+                            {{ demand.content }}
+                        </div>
+                    </div>
+                    {% else %}
+                    <p style="text-align: center; opacity: 0.5;">Aucune demande traitée.</p>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+        <div id="history-modal" class="modal">
+            <div class="modal-content glass" style="max-width: 600px;">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+                    <h2 id="history-title">Historique des Commandes</h2>
+                    <span class="close" onclick="closeModal('history-modal')">&times;</span>
+                </div>
+                <div id="history-content" style="max-height: 400px; overflow-y: auto;">
+                    <!-- Filled by JS -->
+                </div>
+            </div>
+        </div>
+
+        <script>
+            async function markProcessed(id) {
+                try {
+                    const res = await fetch(`/api/demands/${id}/status`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ status: 'processed' })
+                    });
+                    if (res.ok) {
+                        location.reload();
+                    }
+                } catch (e) {
+                    alert("Erreur réseau");
+                }
+            }
+
+            async function deleteDemand(id) {
+                if (!confirm("Supprimer cette demande définitivement ?")) return;
+                try {
+                    const res = await fetch(`/api/demands/${id}`, {
+                        method: 'DELETE'
+                    });
+                    if (res.ok) {
+                        document.getElementById(`demand-${id}`).remove();
+                    }
+                } catch (e) {
+                    alert("Erreur réseau");
+                }
+            }
+            async function viewHistory(phone) {
+                const content = document.getElementById('history-content');
+                const title = document.getElementById('history-title');
+                title.innerText = `Historique: ${phone}`;
+                content.innerHTML = '<p style="text-align:center; opacity:0.5;">Chargement...</p>';
+                openModal('history-modal');
+
+                try {
+                    const res = await fetch(`/api/customer/history/${phone}`);
+                    const data = await res.json();
+
+                    if (data.length === 0) {
+                        content.innerHTML = '<p style="text-align:center; opacity:0.5;">Aucune commande trouvée.</p>';
+                        return;
+                    }
+
+                    let html = '';
+                    data.forEach(order => {
+                        const date = new Date(order.created_at).toLocaleString('fr-FR', { hour: '2-digit', minute: '2-digit', day: '2-digit', month: '2-digit' });
+                        html += `
+                        <div class="glass" style="margin-bottom: 15px; padding: 15px; border-left: 4px solid var(--accent-primary);">
+                            <div style="display: flex; justify-content: space-between; margin-bottom: 8px;">
+                                <span style="font-weight:600;">#${order.id} - ${date}</span>
+                                <span class="badge ${order.status === 'termine' ? 'green' : (order.status === 'en_cours' ? 'blue' : 'yellow')}">${order.status}</span>
+                            </div>
+                            <div style="font-size: 0.9rem; margin-bottom: 5px;">📍 <b>Adresse:</b> ${order.address || 'N/A'}</div>
+                            <div style="font-size: 0.9rem; background: rgba(255,255,256,0.03); padding: 8px; border-radius: 4px;">
+                                ${order.order_detail}
+                            </div>
+                        </div>
+                    `;
+                    });
+                    content.innerHTML = html;
+                } catch (e) {
+                    content.innerHTML = '<p style="color:var(--error-red);">Erreur lors du chargement de l\'historique.</p>';
+                }
+            }
+
+            function openModal(id) {
+                document.getElementById(id).style.display = 'block';
+            }
+
+            function closeModal(id) {
+                document.getElementById(id).style.display = 'none';
+            }
+
+            // Close modal when clicking outside
+            window.onclick = function (event) {
+                if (event.target.classList.contains('modal')) {
+                    event.target.style.display = 'none';
+                }
+            }
+        </script>
+</body>
+
+</html>

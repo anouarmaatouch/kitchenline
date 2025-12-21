@@ -1,13 +1,38 @@
-FROM python:3.9-slim
+# Stage 1: Build React Frontend
+FROM node:20-slim AS frontend-build
+WORKDIR /web
+COPY web/package*.json ./
+RUN npm install
+COPY web/ .
+RUN npm run build
 
+# Stage 2: Build Python Backend
+FROM python:3.11-slim
 WORKDIR /app
 
-COPY requirements.txt .
-RUN pip install --no-cache-dir -r requirements.txt
+# Install system dependencies for psycopg2/gevent
+RUN apt-get update && apt-get install -y \
+    build-essential \
+    libpq-dev \
+    && rm -rf /var/lib/apt/lists/*
 
-COPY . .
+# Copy requirements and install
+COPY api/requirements.txt ./api/
+RUN pip install --no-cache-dir -r ./api/requirements.txt
 
-# Environment variables will be overridden by docker-compose
-ENV FLASK_APP=app.py
+# Copy backend code
+COPY api/ ./api/
 
-CMD ["gunicorn", "-k", "gthread", "-w", "1", "--threads", "10", "--access-logfile", "-", "-b", "0.0.0.0:5000", "--timeout", "60", "app:app"]
+# Copy frontend build from stage 1
+COPY --from=frontend-build /web/dist ./web/dist
+
+# Set environment variables
+ENV FLASK_APP=api/app.py
+ENV PYTHONUNBUFFERED=1
+ENV PYTHONPATH=/app/api
+
+WORKDIR /app/api
+
+# Gunicorn config (conservative for small instances)
+# Increase workers/threads when scaling to larger instance
+CMD ["gunicorn", "--worker-class", "gevent", "--workers", "1", "--threads", "100", "--worker-connections", "200", "--access-logfile", "-", "--error-logfile", "-", "-b", "0.0.0.0:5000", "--timeout", "120", "--keep-alive", "5", "app:app"]
