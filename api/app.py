@@ -22,26 +22,27 @@ def create_app():
     from werkzeug.middleware.proxy_fix import ProxyFix
     app.wsgi_app = ProxyFix(app.wsgi_app, x_for=1, x_proto=1, x_host=1, x_prefix=1)
 
-    # Configure Logging
+    # Configure Logging - prevent duplicate logs
     import logging
     import sys
     
-    if not app.debug and not app.testing:
-        # Production logging
-        pass
-
-    # Ensure logs go to stdout for Docker
+    # Create a single handler for stdout
     handler = logging.StreamHandler(sys.stdout)
     handler.setLevel(logging.INFO)
     formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
     handler.setFormatter(formatter)
     
+    # Clear any existing handlers to prevent duplicates
+    app.logger.handlers.clear()
     app.logger.addHandler(handler)
     app.logger.setLevel(logging.INFO)
+    app.logger.propagate = False  # Don't propagate to root logger
     
-    # Also configure root logger for other modules (like voice.py if using print/logging)
-    logging.getLogger().addHandler(handler)
-    logging.getLogger().setLevel(logging.INFO)
+    # Configure root logger for other modules (voice.py, etc) - also clear first
+    root_logger = logging.getLogger()
+    root_logger.handlers.clear()
+    root_logger.addHandler(handler)
+    root_logger.setLevel(logging.INFO)
 
     # Initialize extensions
     CORS(app)

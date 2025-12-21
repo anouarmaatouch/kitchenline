@@ -5,17 +5,44 @@ import base64
 import asyncio
 import threading
 import audioop
+import time
 from flask import Blueprint, request, jsonify, current_app
 from extensions import sock, db
 from models.models import User, Order, Demand
 from routes.orders import add_event
 from utils.phone import normalize_phone
 
+# Gemini imports at top level for faster thread startup
+try:
+    from google import genai
+    from google.genai import types
+except ImportError:
+    pass
+
 voice_bp = Blueprint('voice', __name__)
 
 # Gemini model for voice
 GEMINI_MODEL = "gemini-live-2.5-flash-native-audio"
 # GEMINI_MODEL = "gemini-2.5-flash-native-audio-preview-12-2025"
+
+# Company cache to reduce DB hits (TTL: 60 seconds)
+_company_cache = {}
+_CACHE_TTL = 60  # seconds
+
+def get_cached_company(phone_number):
+    """Get company from cache or DB, with 60s TTL"""
+    from models.models import Company
+    now = time.time()
+    
+    if phone_number in _company_cache:
+        company, cached_at = _company_cache[phone_number]
+        if now - cached_at < _CACHE_TTL:
+            return company
+    
+    # Cache miss or expired - fetch from DB
+    company = Company.query.filter_by(phone_number=phone_number).first()
+    _company_cache[phone_number] = (company, now)
+    return company
 
 @voice_bp.route('/webhooks/event', methods=['POST'])
 def event():
@@ -69,10 +96,9 @@ def voice_stream(ws):
     
     current_app.logger.info(f"📞 Incoming call to: {to_number} from: {caller_number}")
     
-    # Fetch company context with normalized phone
-    from models.models import Company
+    # Fetch company context with normalized phone (cached)
     norm_to = normalize_phone(to_number)
-    company = Company.query.filter_by(phone_number=norm_to).first()
+    company = get_cached_company(norm_to)
     
     if company and not company.agent_on:
         current_app.logger.info(f"Agent OFF for {to_number}")
@@ -98,7 +124,6 @@ def voice_stream(ws):
     system_instruction += "\n\nWhen the order is confirmed, use the 'create_order' function to submit it. If the customer has a special request, demand, or modification that is NOT a direct food order, use 'submit_demand'. Always ask for the customer's name."
     
     app = current_app._get_current_object()
-    app = current_app._get_current_object()
     
     # Vertex AI Credentials
     creds_path = os.path.abspath("vertex-json.json")
@@ -113,13 +138,15 @@ def voice_stream(ws):
     stop_event = threading.Event()
     audio_queue = collections.deque()
     audio_lock = threading.Lock()
+    greeting_sent = threading.Event()  # Track if greeting was sent
     
     def gemini_thread():
         """Run Gemini in a separate thread with its own event loop"""
         
         async def run_gemini():
-            from google import genai
-            from google.genai import types
+            # Imports moved to top-level to avoid blocking/delays
+            # from google import genai
+            # from google.genai import types
             
             try:
                 # Initialize Vertex AI Client
@@ -191,10 +218,20 @@ def voice_stream(ws):
                 ) as session:
                     with app.app_context():
                         current_app.logger.info("✅ Connected to Gemini Live!")
-                        
-                        # Trigger Greeting
                         current_app.logger.info(f"✨ Gemini Live session started for {caller_number} -> {to_number}")
-                        await session.send(input="The customer is online. Say 'Salam' and ask for their order in Moroccan Darija.", end_of_turn=True)
+                    
+                    # Send greeting IMMEDIATELY after connect (before starting receive loop)
+                    try:
+                        await session.send(
+                            input="The customer is online. Say 'Salam' and ask for their order in Moroccan Darija.", 
+                            end_of_turn=True
+                        )
+                        greeting_sent.set()
+                        with app.app_context():
+                            current_app.logger.info("🎤 Greeting sent to Gemini")
+                    except Exception as e:
+                        with app.app_context():
+                            current_app.logger.error(f"❌ Failed to send greeting: {e}")
                     
                     # Task to send audio to Gemini
                     async def send_audio():
@@ -219,7 +256,7 @@ def voice_stream(ws):
                                         current_app.logger.error(f"❌ Send to Gemini error for {caller_number}: {e}")
                                     break
                             else:
-                                await asyncio.sleep(0.005)
+                                await asyncio.sleep(0.01)  # 10ms polling (safer for CPU than 2ms)
                     
                     # Resampling state (24k -> 16k)
                     resample_state = None
@@ -376,7 +413,7 @@ def voice_stream(ws):
                         finally:
                             stop_event.set()
                     
-                    # Run both tasks
+                    # Run audio tasks concurrently (greeting already sent above)
                     await asyncio.gather(
                         send_audio(),
                         receive_audio(),
@@ -392,15 +429,58 @@ def voice_stream(ws):
                     current_app.logger.info("Gemini session ended")
         
         
-        # Use asyncio.run() which creates and manages its own event loop
-        # This prevents "RuntimeError: Cannot run the event loop while another loop is running"
+        # Create a fresh event loop for this thread (avoids conflict with gevent's loop)
+        # This fixes: "asyncio.run() cannot be called from a running event loop"
+        loop = None
         try:
-            asyncio.run(run_gemini())
+            # Import nest_asyncio dynamically (it will be installed in the container)
+            import nest_asyncio
+            
+            # Try to get existing loop or create new one
+            try:
+                loop = asyncio.get_running_loop()
+            except RuntimeError:
+                loop = asyncio.new_event_loop()
+                asyncio.set_event_loop(loop)
+            
+            # Patch the loop to allow re-entrant execution
+            nest_asyncio.apply(loop)
+            
+            # Run the task
+            loop.run_until_complete(run_gemini())
+            
         except KeyboardInterrupt:
             pass
         except Exception as e:
             with app.app_context():
                 current_app.logger.error(f"Gemini thread fatal error: {e}")
+                # Log traceback for loop errors
+                import traceback
+                current_app.logger.error(traceback.format_exc())
+        finally:
+            # Properly cleanup pending tasks before closing the loop
+            if loop is not None and not loop.is_closed():
+                try:
+                    # Cancel all pending tasks
+                    pending = asyncio.all_tasks(loop)
+                    for task in pending:
+                        task.cancel()
+                    # Allow cancelled tasks to complete
+                    if pending:
+                        loop.run_until_complete(asyncio.gather(*pending, return_exceptions=True))
+                except Exception:
+                    pass
+                finally:
+                    # Only close if we created it (not checks here, but safe to leave open in gevent usually 
+                    # OR strict close if we want. With nest_asyncio, closing shared loop is bad.
+                    # Safest: Don't close loop if it was 'get_running_loop', but we don't know easily.
+                    # Actually, if we are in a thread, we should own the loop.
+                    try:
+                        loop.close()
+                    except: 
+                        pass
+                    # CRITICAL: Detach loop from thread to prevent reuse issues
+                    asyncio.set_event_loop(None)
     
     # Start Gemini thread
     gemini_t = threading.Thread(target=gemini_thread, daemon=True)
@@ -412,7 +492,7 @@ def voice_stream(ws):
             try:
                 data = ws.receive(timeout=1.0)
                 if not data:
-                    current_app.logger.info("Vonage WebSocket closed")
+                    current_app.logger.info("Vonage WebSocket closed: received empty data")
                     break
                 if isinstance(data, bytes):
                     with audio_lock:

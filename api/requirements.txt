@@ -12,3 +12,4 @@ werkzeug
 gevent
 google-genai
 flask-cors
+nest_asyncio==1.5.8
