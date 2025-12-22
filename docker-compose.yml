@@ -9,6 +9,7 @@ services:
     environment:
       - DATABASE_URL=postgresql://user:password@db:5432/serveme
       - PUBLIC_URL=localhost:5000
+    command: uvicorn main:app --host 0.0.0.0 --port 5000 --reload
     depends_on:
       db:
         condition: service_healthy
@@ -29,7 +30,7 @@ services:
     ports:
       - "5432:5432"
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U user -d serveme"]
+      test: [ "CMD-SHELL", "pg_isready -U user -d serveme" ]
       interval: 5s
       timeout: 5s
       retries: 5

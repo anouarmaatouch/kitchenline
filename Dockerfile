@@ -33,6 +33,5 @@ ENV PYTHONPATH=/app/api
 
 WORKDIR /app/api
 
-# Gunicorn config (conservative for small instances)
-# Increase workers/threads when scaling to larger instance
-CMD ["gunicorn", "--worker-class", "gevent", "--workers", "1", "--threads", "100", "--worker-connections", "200", "--access-logfile", "-", "--error-logfile", "-", "-b", "0.0.0.0:5000", "--timeout", "120", "--keep-alive", "5", "app:app"]
+# Uvicorn for FastAPI
+CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "5000", "--workers", "4"]
