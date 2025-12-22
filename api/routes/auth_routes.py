@@ -29,3 +29,27 @@ async def login(login_data: UserLogin, db: AsyncSession = Depends(get_db)):
 @router.get("/me", response_model=UserOut)
 async def read_users_me(current_user: User = Depends(get_current_user)):
     return current_user.to_dict()
+
+@router.post("/profile")
+async def update_profile(data: dict, current_user: User = Depends(get_current_user), db: AsyncSession = Depends(get_db)):
+    # Update Password if provided
+    if 'password' in data and data['password']:
+        from auth import get_password_hash
+        current_user.password_hash = get_password_hash(data['password'])
+        
+    # Update Company Settings
+    if current_user.company_ref:
+        if 'agent_on' in data:
+            current_user.company_ref.agent_on = data['agent_on']
+        if 'voice' in data:
+            current_user.company_ref.voice = data['voice']
+        if 'system_prompt' in data:
+            current_user.company_ref.system_prompt = data['system_prompt']
+        if 'menu' in data:
+            current_user.company_ref.menu = data['menu']
+            
+    await db.commit()
+    # Refresh user to get latest state
+    # await db.refresh(current_user)
+    
+    return {"success": True, "user": current_user.to_dict()}

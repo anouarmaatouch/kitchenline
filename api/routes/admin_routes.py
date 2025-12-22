@@ -194,22 +194,27 @@ async def manage_users(payload: dict, current_user: User = Depends(get_current_u
             phone_number=normalize_phone(phone) if phone else None,
             voice='Charon',
             agent_on=True,
-            system_prompt=DEFAULT_SYSTEM_PROMPTS.get('fr-fr')
+            system_prompt=DEFAULT_SYSTEM_PROMPTS.get('fr')
         )
         db.add(new_company)
         await db.flush()
         
-        new_user = User(
-            username=username,
-            company_id=new_company.id,
-            is_admin=payload.get('is_admin', False),
-            is_superadmin=payload.get('is_superadmin', False)
-        )
-        new_user.password_hash = get_password_hash(payload.get('password'))
-        
-        db.add(new_user)
-        await db.commit()
-        return {"success": True, "user": new_user.to_dict()}
+        try:
+            new_user = User(
+                username=username,
+                company_id=new_company.id,
+                is_admin=payload.get('is_admin', False),
+                is_superadmin=payload.get('is_superadmin', False)
+            )
+            new_user.password_hash = get_password_hash(payload.get('password'))
+            
+            db.add(new_user)
+            await db.commit()
+            return {"success": True, "user": new_user.to_dict()}
+        except Exception as e:
+            print(f"Error creating user: {str(e)}")
+            await db.rollback()
+            raise HTTPException(500, f"Error creating user: {str(e)}")
         
     elif action == 'edit':
         user_id = payload.get('user_id')

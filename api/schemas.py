@@ -18,6 +18,9 @@ class CompanyOut(BaseModel):
     name: str
     phone_number: Optional[str] = None
     voice: Optional[str] = None
+    agent_on: bool = True
+    system_prompt: Optional[str] = None
+    menu: Optional[str] = None
     
     class Config:
         from_attributes = True
