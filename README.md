@@ -57,7 +57,7 @@ This project creates a fully automated phone ordering experience for restaurants
 ## 📁 Project Structure
 
 ```
-kitchenline/
+api/
 ├── app.py                 # Flask application factory
 ├── config.py              # Environment configuration
 ├── models.py              # SQLAlchemy models (User, Order, PushSubscription)
