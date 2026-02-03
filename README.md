@@ -5,7 +5,6 @@ An AI-powered voice ordering system that answers phone calls, takes restaurant o
 ![Python](https://img.shields.io/badge/Python-3.9+-blue.svg)
 ![Flask](https://img.shields.io/badge/Flask-3.0-green.svg)
 ![OpenAI](https://img.shields.io/badge/OpenAI-Realtime_API-412991.svg)
-![License](https://img.shields.io/badge/License-MIT-yellow.svg)
 
 ## 🎯 Overview
 
