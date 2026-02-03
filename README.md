@@ -92,10 +92,7 @@ restau/
 
 1. **Clone and setup environment**
 ```bash
-git clone https://github.com/yourusername/restaurant-ai-voice.git
-cd restaurant-ai-voice
-cp .env.example .env
-# Edit .env with your API keys
+git clone https://github.com/anouarmaatouch/kitchenline.git
 ```
 
 2. **Start with Docker Compose**
@@ -139,13 +136,3 @@ fly deploy
 Configure your Vonage application webhooks:
 - **Answer URL**: `https://your-domain.com/webhooks/answer`
 - **Event URL**: `https://your-domain.com/webhooks/event`
-
-## 📄 License
-
-MIT License - feel free to use this project for your own restaurant or as a portfolio piece!
-
-## 🙏 Acknowledgments
-
-- [OpenAI Realtime API](https://platform.openai.com/docs/guides/realtime) for voice AI
-- [Vonage](https://vonage.com) for telephony
-- [Fly.io](https://fly.io) for easy deployment
